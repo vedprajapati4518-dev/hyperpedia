@@ -1,0 +1,316 @@
+```html id="fixednav"
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Hyperpedia Final Working</title>
+
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial}
+
+body{
+height:100vh;
+background:linear-gradient(rgba(0,0,0,0.6),rgba(0,0,0,0.85)),
+url('https://images.unsplash.com/photo-1501785888041-af3ef285b470');
+background-size:cover;color:white;overflow:hidden;
+}
+
+.page{
+display:none;
+height:100vh;
+justify-content:center;
+align-items:center;
+flex-direction:column;
+}
+
+/* SHOW DEFAULT */
+#home{display:flex;}
+
+button{
+padding:10px 20px;border:none;border-radius:20px;
+background:#00c6ff;color:white;cursor:pointer;
+}
+
+input{
+padding:10px;margin:10px;border:none;border-radius:10px;
+}
+
+/* LOGIN BOX */
+.login-box{
+background:rgba(255,255,255,0.2);
+padding:25px;border-radius:15px;
+backdrop-filter:blur(10px);
+}
+
+/* APP */
+#app{display:none;flex-direction:column;}
+
+/* TOPBAR */
+.topbar{
+position:fixed;top:10px;right:10px;
+display:flex;gap:10px;align-items:center;
+}
+.circle{
+width:45px;height:45px;border-radius:50%;
+background:#00c6ff;display:flex;align-items:center;justify-content:center;
+cursor:pointer;
+}
+select{padding:5px;border-radius:10px}
+
+/* CHAT */
+.chat{
+flex:1;overflow:auto;padding:10px;margin-top:60px;
+display:flex;flex-direction:column;
+}
+.msg{max-width:70%;padding:12px;margin:6px;border-radius:12px;}
+.user{background:#00c6ff;margin-left:auto;}
+.ai{background:rgba(255,255,255,0.2);}
+img{max-width:200px;border-radius:10px}
+
+/* INPUT */
+.bottom{
+display:flex;padding:10px;background:#111;
+}
+.bottom input{flex:1}
+
+/* PANEL */
+.panel{
+position:fixed;left:-300px;top:0;width:300px;height:100%;
+background:#111;padding:10px;transition:0.4s;overflow:auto;
+}
+.panel.open{left:0}
+.item{background:#222;margin:5px;padding:8px;border-radius:5px;cursor:pointer;}
+
+/* VIEWER */
+.viewer{
+position:fixed;top:0;left:0;width:100%;height:100%;
+background:white;display:none;
+}
+.viewer iframe{width:100%;height:100%;border:none;}
+.closeBtn{
+position:absolute;top:10px;left:10px;
+background:red;color:white;padding:8px;border:none;border-radius:10px;
+}
+</style>
+</head>
+
+<body>
+
+<!-- HOME -->
+<div id="home" class="page">
+<h1>🌿 Hyperpedia</h1>
+<button onclick="showPage('login')">Enter</button>
+</div>
+
+<!-- LOGIN -->
+<div id="login" class="page">
+<div class="login-box">
+<h2>Login</h2>
+
+<input id="user" placeholder="Username"><br>
+
+<div style="position:relative;">
+<input id="pass" type="password" placeholder="Password">
+<span onclick="togglePass()" style="position:absolute;right:10px;top:10px;cursor:pointer;">👁</span>
+</div>
+
+<button onclick="goApp()">Login</button>
+</div>
+</div>
+
+<!-- APP -->
+<div id="app" class="page">
+
+<div class="topbar">
+<select id="lang">
+<option value="en-US">English</option>
+<option value="hi-IN">Hindi</option>
+<option value="gu-IN">Gujarati</option>
+</select>
+
+<div class="circle" onclick="toggleHistory()">📂</div>
+<div class="circle" onclick="toggleProfile()">👤</div>
+</div>
+
+<div id="chat" class="chat"></div>
+
+<div class="bottom">
+<input id="input" placeholder="Ask anything...">
+<button onclick="voice()">🎤</button>
+<button onclick="send()">➤</button>
+</div>
+
+</div>
+
+<!-- PANELS -->
+<div id="historyPanel" class="panel">
+<h3>History ❌</h3>
+<div id="history"></div>
+</div>
+
+<div id="profilePanel" class="panel">
+<h3>Profile ❌</h3>
+<p id="username"></p>
+</div>
+
+<!-- VIEWER -->
+<div id="viewer" class="viewer">
+<button class="closeBtn" onclick="closeViewer()">⬅ Back</button>
+<iframe id="frame"></iframe>
+</div>
+
+<script>
+
+let currentUser="";
+let historyData=[];
+
+/* PAGE SWITCH */
+function showPage(id){
+document.querySelectorAll('.page').forEach(p=>p.style.display='none');
+document.getElementById(id).style.display='flex';
+}
+
+/* PASSWORD */
+function togglePass(){
+pass.type=pass.type==="password"?"text":"password";
+}
+
+/* LOGIN */
+function goApp(){
+if(!user.value){alert("Enter username");return;}
+
+currentUser=user.value;
+username.innerText="👤 "+currentUser;
+
+loadHistory();
+showPage("app");
+}
+
+/* MESSAGE */
+function addMsg(html,type,img){
+let div=document.createElement("div");
+div.className="msg "+type;
+
+if(img){
+let im=document.createElement("img");
+im.src=img;
+div.appendChild(im);
+}
+
+let txt=document.createElement("div");
+txt.innerHTML=html;
+div.appendChild(txt);
+
+chat.appendChild(div);
+chat.scrollTop=chat.scrollHeight;
+}
+
+/* SPEAK */
+function speak(text){
+let speech=new SpeechSynthesisUtterance(text);
+speech.lang=lang.value;
+speechSynthesis.speak(speech);
+}
+
+/* HISTORY */
+function saveHistory(){
+localStorage.setItem(currentUser,JSON.stringify(historyData));
+}
+function loadHistory(){
+historyData=JSON.parse(localStorage.getItem(currentUser)||"[]");
+renderHistory();
+}
+function renderHistory(){
+history.innerHTML="";
+historyData.forEach(q=>{
+let d=document.createElement("div");
+d.className="item";
+d.innerText=q;
+d.onclick=()=>{input.value=q;send();};
+history.appendChild(d);
+});
+}
+
+/* SEARCH */
+async function send(){
+
+let q=input.value.trim();
+if(!q) return;
+
+addMsg(q,"user");
+input.value="";
+
+historyData.unshift(q);
+saveHistory();
+renderHistory();
+
+addMsg("Searching...","ai");
+
+try{
+let res=await fetch(
+"https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch="+encodeURIComponent(q)+"&format=json&origin=*"
+);
+let data=await res.json();
+
+for(let item of data.query.search.slice(0,5)){
+let page=await fetch(
+"https://en.wikipedia.org/api/rest_v1/page/summary/"+encodeURIComponent(item.title)
+);
+let d=await page.json();
+
+if(d.extract){
+let text=d.extract.split(". ").slice(0,4).join(". ")+".";
+
+let link="https://en.wikipedia.org/wiki/"+encodeURIComponent(item.title);
+
+addMsg(`
+<b>${item.title}</b><br><br>
+${text}<br><br>
+<button onclick="openViewer('${link}')">📖 Read Full</button>
+`,"ai",d.thumbnail?.source);
+
+speak(text);
+return;
+}
+}
+}catch(e){}
+
+/* FALLBACK */
+let url="https://en.wikipedia.org/w/index.php?search="+encodeURIComponent(q);
+
+addMsg(`
+❌ No exact answer<br><br>
+<button onclick="openViewer('${url}')">🔎 Search Wikipedia</button>
+`,"ai");
+}
+
+/* VIEWER */
+function openViewer(url){
+viewer.style.display="block";
+frame.src=url;
+}
+function closeViewer(){
+viewer.style.display="none";
+frame.src="";
+}
+
+/* VOICE */
+function voice(){
+let r=new(window.SpeechRecognition||window.webkitSpeechRecognition)();
+r.lang=lang.value;
+r.onresult=e=>{
+input.value=e.results[0][0].transcript;
+send();
+};
+r.start();
+}
+
+/* PANELS */
+function toggleHistory(){historyPanel.classList.toggle("open");}
+function toggleProfile(){profilePanel.classList.toggle("open");}
+
+</script>
+
+</body>
+</html>
+```
